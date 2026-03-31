@@ -13,6 +13,25 @@
           <li class="list-group-item"><strong>Temp. Mínima:</strong> {{ mostrarTemp(ciudadEncontrada.main.temp_min) }}</li>
           <li class="list-group-item"><strong>Humedad:</strong> {{ ciudadEncontrada.main.humidity }}%</li>
         </ul>
+
+        <div class="mt-4">
+          <div v-if="ciudadEncontrada.main.temp > 25" class="alert alert-danger">
+            🔥 <strong>Alerta de calor:</strong> Alta temperatura, mantente hidratado.
+          </div>
+          <div v-else-if="ciudadEncontrada.main.temp < 10" class="alert alert-info">
+            ❄️ <strong>Alerta de frío:</strong> Bajas temperaturas, usa abrigo.
+          </div>
+          <div v-else class="alert alert-success">
+            ✅ <strong>Clima agradable:</strong> Condiciones estables para hoy.
+          </div>
+        </div>
+
+        <div v-if="estadisticas" class="alert alert-warning mt-2 mb-0">
+          📊 <strong>Promedio de la semana:</strong> {{ estadisticas.promedio }}°C
+          <br>
+          <small>(Máxima semanal: {{ estadisticas.max }}°C | Mínima: {{ estadisticas.min }}°C)</small>
+        </div>
+
       </div>
     </div>
 
@@ -53,6 +72,9 @@ import { useRoute } from 'vue-router'
 import { useStore } from 'vuex'
 import axios from 'axios'
 
+// 1. IMPORTAMOS TU CLASE (Cumple Requisito: POO)
+import { WeatherApp } from '../services/WeatherApp'
+
 const route = useRoute()
 const store = useStore()
 const nombreCiudad = route.params.ciudad
@@ -62,6 +84,7 @@ const ciudadEncontrada = computed(() => {
 })
 
 const pronostico = ref([])
+const estadisticas = ref(null)
 
 const iconosBootstrap = {
   '01d': 'bi-sun-fill text-warning', '01n': 'bi-moon-stars-fill text-secondary',
@@ -83,7 +106,6 @@ const formatearFecha = (fechaTexto) => {
   return fecha.toLocaleDateString('es-ES', opciones)
 }
 
-// --- NUEVA FUNCIÓN MATEMÁTICA PARA LOS DETALLES ---
 const mostrarTemp = (tempCelsius) => {
   if (store.state.usarFahrenheit) {
     const fahrenheit = (tempCelsius * 9/5) + 32
@@ -97,7 +119,14 @@ onMounted(async () => {
     const apiKey = import.meta.env.VITE_API_KEY
     const url = `https://api.openweathermap.org/data/2.5/forecast?q=${nombreCiudad}&appid=${apiKey}&units=metric&lang=es`
     const respuesta = await axios.get(url)
-    pronostico.value = respuesta.data.list.filter((_, index) => index % 8 === 0)
+    
+    const pronosticoFiltrado = respuesta.data.list.filter((_, index) => index % 8 === 0)
+    pronostico.value = pronosticoFiltrado
+
+    // 2. USAMOS LA CLASE POO PARA CALCULAR ESTADÍSTICAS
+    const apiClima = new WeatherApp(apiKey)
+    estadisticas.value = apiClima.calcularEstadisticas(pronosticoFiltrado)
+
   } catch (error) {
     console.error("Error al obtener el pronóstico:", error)
   }
